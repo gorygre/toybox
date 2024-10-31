@@ -1,0 +1,68 @@
+#!/bin/bash
+# This contains good examples of some more advanced bash specifically for little utilites like this
+# Who wrote the code that I fixed?
+# Perform `svn blame`s on modified files and parse only modifed lines
+
+USAGE="
+    whoDidThis <options>
+
+    Assumes you are in an svn repo
+
+    options:
+    -v verbose  print all info
+    -x debug    set +x as soon as possible
+    -h help     print this message
+"
+
+VERBOSE=false
+
+# Parse command line options
+declare -i NUM_OPTS=0
+while getopts ":svxh" opt; do
+    case $opt in
+        v)     VERBOSE=true; let "NUM_OPTS+=1" ;;
+        x)     set +x;       let "NUM_OPTS+=1" ;;
+        h)     printf "${USAGE}";    exit 1;;
+        \?)    printf "${USAGE}";    exit 1;;
+    esac
+done
+
+# Get the list of modified files
+FILES=$(svn st -q | grep "^M" | cut -d" " -f 8)
+
+for FILE in $FILES; do
+    if [ $VERBOSE = true ]; then
+        echo "=========================================================================================="
+    fi
+    echo "${FILE}"
+
+    # Get the array of line/offset pairs that have changed 
+    LINE_COUNT=$(svn diff "${FILE}" | wc -l)
+    DATA=$(svn diff "${FILE}" | grep -n "@")
+    readarray -t OFFSETS <<< $(cut -d":" -f 1 <<< "${DATA}")
+    readarray -t LINE_NUMBERS <<< $(sed 's/^[0-9]*:@@ -\([0-9]*\),.*/\1/g' <<< "${DATA}")
+
+    for INDEX in ${!LINE_NUMBERS[@]}; do
+        OFFSET=${OFFSETS[$INDEX]}
+        LINE=${LINE_NUMBERS[$INDEX]}
+        let END=$LINE+$OFFSET
+        let OFFSET_PLUS_ONE=$OFFSET+1
+        # Blame only users who wrote the lines before they were modified
+        WHO_DID_THIS=$(svn blame -r HEAD "${FILE}" | head -n "${END}" | tail -n "${OFFSET_PLUS_ONE}")
+
+        echo ""
+        if [ $VERBOSE = true ]; then
+            echo "${LINE}-${END}:"
+        fi
+        # Raw output
+        # echo "${WHO_DID_THIS}"
+
+        # Output usernames with a count of how many lines they wrote
+        echo $(echo "${WHO_DID_THIS}" | sed 's/^ *[0-9]* *\([a-z]*\) .*/\1/g' | sort | uniq -c)
+    done
+
+    if [ $VERBOSE = true ]; then
+        echo "=========================================================================================="
+    fi
+    echo ""
+done

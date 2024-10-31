@@ -1,0 +1,101 @@
+#!/bin/bash
+
+# store cursor position manually
+printf '\e[6n'
+read -sdR CURSOR_POSITION
+CURSOR_POSITION=${CURSOR_POSITION#*[}
+CURSOR_LINE=${CURSOR_POSITION%;*}
+
+GREEN='\033[0;32m'
+NC='\033[0m'
+
+GIT_BRANCH=$(git branch)
+if [[ ${?} -ne 0 ]]
+then
+  exit 1
+fi
+
+BRANCHES=$(printf "${GIT_BRANCH}" | ag -o "[ \*]+\K.*")
+SELECTED_LINE=$(printf "${GIT_BRANCH}" | ag --numbers '\*' | cut -d ':' -f 1)
+LINE_COUNT=$(printf "${GIT_BRANCH}" | wc -l | cut -d " " -f 8)
+let "LINE_COUNT=LINE_COUNT+1"
+
+quit()
+{
+  # restore cursor to original position
+  printf "\e[${CURSOR_POSITION}H"
+  # clear the screen from cursor to the end of display
+  printf '\e[0J'
+  exit 1
+}
+trap quit INT
+
+down()
+{
+  if ! [[ ${SELECTED_LINE} -eq ${LINE_COUNT} ]]
+  then
+    let "SELECTED_LINE=SELECTED_LINE+1"
+  fi
+}
+
+up()
+{
+  if ! [[ ${SELECTED_LINE} -eq 1 ]]
+  then
+    let "SELECTED_LINE=SELECTED_LINE-1"
+  fi
+}
+
+loop()
+{
+  # restore cursor to original position
+  printf "\e[${CURSOR_POSITION}H"
+  # clear the screen from cursor to the end of display
+  printf '\e[0J'
+
+  local row=1
+  while IFS= read -r line;
+  do
+    if [[ ${row} -eq ${SELECTED_LINE} ]]
+    then
+      printf "  ${GREEN}${line}${NC}\n"
+    else
+      printf "  ${line}\n"
+    fi
+
+    let "row=row+1"
+  done <<< "${BRANCHES}"
+
+  # move the cursor to selected line
+  let "cursor=CURSOR_LINE+SELECTED_LINE-1"
+  printf "\e[${cursor}H"
+
+  read -r -s -n1 char
+
+  case "${char}" in
+    j)
+      down
+      return 1
+      ;;
+
+    k)
+      up
+      return 2
+      ;;
+
+    "")
+      return 0
+      ;;
+  esac
+
+  return 3
+}
+
+until loop; do :; done
+
+# move the cursor to end of output
+let "cursor=CURSOR_LINE+LINE_COUNT"
+printf "\e[${cursor}H"
+
+BRANCH=$(printf "${BRANCHES}" | sed -n "${SELECTED_LINE}p")
+git checkout "${BRANCH}"

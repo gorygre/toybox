@@ -1,0 +1,35 @@
+#!/bin/bash
+if [ $# -ne 3 ]; then
+	echo "zipper <count> <last_file> <should_file>"
+	exit 1
+fi
+
+COUNT="${1}"
+LAST_FILE="${2}"
+SHOULD_FILE="${3}"
+
+for i in $(seq $COUNT); do
+    if [ $SHOULD_FILE = "true" ]; then
+        echo "$i" >> "${i}.txt"
+    fi
+
+	if [ $i = 1 ]; then
+		zip "${i}.zip" "$LAST_FILE"
+	else
+		j=$((i-1))
+        if [ $SHOULD_FILE = "true" ]; then
+            zip "${i}.zip" "${j}.zip" "${i}.txt"
+        else
+            zip "${i}.zip" "${j}.zip"
+        fi
+	fi
+done
+
+for i in $(seq $COUNT); do
+    if [ $SHOULD_FILE = "true" ]; then
+        rm "${i}.txt"
+    fi
+	if [ $i -ne $COUNT ]; then
+		rm "${i}.zip"
+	fi
+done
