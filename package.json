@@ -1,14 +1,11 @@
 {
-  "name": "snippets",
+  "name": "toybox",
   "version": "0.0.1",
   "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
+  "type": "module",
   "author": "Gregory McCall",
   "license": "GPL-3.0-or-later",
   "devDependencies": {
-    "gulp": "^5.0.0"
+    "yargs": "^17.7.2"
   }
 }
