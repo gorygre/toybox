@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Audio</title>
+  </head>
+  <body>
+    <h1>Audio</h1>
+    <button class="controls-play" role="switch" aria-checked="false">
+      <span>Play/Pause</span>
+    </button>
+    <script>
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      const audioCtx = new AudioContext();
+
+      function playBuffer(buffer) {
+        const source = audioCtx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(audioCtx.destination);
+        source.start();
+      }
+
+      async function loadAudio(path) {
+        try {
+          const response = await fetch(path);
+          return audioCtx.decodeAudioData(await response.arrayBuffer());
+        } catch (err) {
+          console.error(`Unable to fetch the audio file. Error: ${err.message}`);
+        }
+      }
+
+      function addBuffers(...buffers) {
+        // use regular array for resizability then copy to Float32Array channel data
+        const pcm = [];
+        for (const buffer of buffers) {
+          // DECTalk audio is always mono
+          const mono = buffer.getChannelData(0);
+          for (let i = 0; i < buffer.length; i++) {
+            if (!pcm[i])
+              pcm[i] = mono[i];
+            else
+              pcm[i] += mono[i];
+          }
+        }
+
+        // mono output
+        // TODO: we could stereo split the mono inputs
+        //       likewise don't have to use sample rate
+        const output = audioCtx.createBuffer(
+          1,
+          buffers[0].sampleRate * pcm.length,
+          buffers[0].sampleRate
+          );
+
+        output.copyToChannel(new Float32Array(pcm), 0);
+        return output
+      }
+
+      async function combineAudio() {
+        // TODO: don't block for all audio to load, add buffers together as they arrive
+        const [buffer1, buffer2] = await Promise.all([
+          loadAudio("foo.wav"),
+          loadAudio("bar.wav"),
+          ]);
+
+        const bufferOut = addBuffers(buffer1, buffer2);
+        
+        playBuffer(bufferOut);
+      }
+
+      const playButton = document.querySelector('.controls-play');
+      playButton.addEventListener('click', function() {
+        combineAudio();
+      }, false);
+    </script>
+  </body>
+</html>

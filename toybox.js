@@ -50,6 +50,7 @@ async function main() {
 
   // could further parse with yargs if it is helpful
   const config = await parseConfig(basename)
+  config.args ??= []
   const args = (process.argv.length < 5) ? config.args : process.argv.slice(4)
 
   if (!(ext in pipelines)) {

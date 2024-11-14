@@ -23,5 +23,10 @@ export const pipelines =
   'awk' : async (file, ...args) => {
     const gawk = `gawk -f ${file} ` + args.join(' ')
     await run(gawk)
+  },
+  'html' : async (file, _) => {
+    const dirname = file.substring(0, file.lastIndexOf('/'))
+    const npx = `npx http-server ${dirname} -p 8080 --cors`
+    await run(npx)
   }
 }
