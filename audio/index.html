@@ -6,6 +6,10 @@
   </head>
   <body>
     <h1>Audio</h1>
+    <input type="text" id="dec1" name="dec1"><br>
+    <input type="text" id="dec2" name="dec2"><br>
+    <input type="text" id="dec3" name="dec3"><br>
+    <input type="text" id="dec4" name="dec4"><br>
     <button class="controls-play" role="switch" aria-checked="false">
       <span>Play/Pause</span>
     </button>
@@ -29,6 +33,23 @@
         }
       }
 
+      async function apiAudio(dectalk) {
+        try {
+          const response = await fetch('http://localhost:8080/dectalk', {
+            method: 'POST',
+            headers: {
+              'Accept': 'audio/x-wav',
+              // TODO: maybe use json anyway for extendability
+              'Content-Type': 'text/plain'
+            },
+            body: dectalk
+          });
+          return audioCtx.decodeAudioData(await response.arrayBuffer());
+        } catch (err) {
+          console.error(`Unable to fetch the audio file. Error: ${err.message}`);
+        }
+      }
+
       function addBuffers(...buffers) {
         // use regular array for resizability then copy to Float32Array channel data
         const pcm = [];
@@ -45,10 +66,10 @@
 
         // mono output
         // TODO: we could stereo split the mono inputs
-        //       likewise don't have to use sample rate
+        //       likewise don't have to use sample rate -- but adjust length if it is different
         const output = audioCtx.createBuffer(
           1,
-          buffers[0].sampleRate * pcm.length,
+          pcm.length,
           buffers[0].sampleRate
           );
 
@@ -57,13 +78,20 @@
       }
 
       async function combineAudio() {
+        const dec1 = document.querySelector('#dec1');
+        const dec2 = document.querySelector('#dec2');
+        const dec3 = document.querySelector('#dec3');
+        const dec4 = document.querySelector('#dec4');
+
         // TODO: don't block for all audio to load, add buffers together as they arrive
-        const [buffer1, buffer2] = await Promise.all([
-          loadAudio("foo.wav"),
-          loadAudio("bar.wav"),
+        const [buffer1, buffer2, buffer3, buffer4] = await Promise.all([
+          apiAudio(dec1.value),
+          apiAudio(dec2.value),
+          apiAudio(dec3.value),
+          apiAudio(dec4.value),
           ]);
 
-        const bufferOut = addBuffers(buffer1, buffer2);
+        const bufferOut = addBuffers(buffer1, buffer2, buffer3, buffer4);
         
         playBuffer(bufferOut);
       }
